@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SmartQueue AI - Intelligent Virtual Queue Management System
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: queues
+    description: Queue management
+  - name: tokens
+    description: Queue token/ticket operations
+  - name: analytics
+    description: Analytics and statistics
+  - name: display
+    description: Public display screen
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,471 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Queues
+  /queues:
+    get:
+      operationId: listQueues
+      tags: [queues]
+      summary: List all queues
+      parameters:
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of queues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Queue"
+    post:
+      operationId: createQueue
+      tags: [queues]
+      summary: Create a queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQueueBody"
+      responses:
+        "201":
+          description: Queue created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Queue"
+
+  /queues/{queueId}:
+    get:
+      operationId: getQueue
+      tags: [queues]
+      summary: Get a queue by ID
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Queue details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateQueue
+      tags: [queues]
+      summary: Update a queue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQueueBody"
+      responses:
+        "200":
+          description: Queue updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Queue"
+
+  /queues/{queueId}/pause:
+    post:
+      operationId: pauseQueue
+      tags: [queues]
+      summary: Pause or resume a queue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PauseQueueBody"
+      responses:
+        "200":
+          description: Queue status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Queue"
+
+  /queues/{queueId}/call-next:
+    post:
+      operationId: callNext
+      tags: [queues]
+      summary: Call the next person in queue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Next token called
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "404":
+          description: No one in queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Tokens
+  /queues/{queueId}/tokens:
+    get:
+      operationId: listTokens
+      tags: [tokens]
+      summary: List tokens in a queue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Token"
+    post:
+      operationId: joinQueue
+      tags: [tokens]
+      summary: Join a queue (get a token)
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinQueueBody"
+      responses:
+        "201":
+          description: Joined queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+
+  /tokens/{tokenId}:
+    get:
+      operationId: getToken
+      tags: [tokens]
+      summary: Get a token by ID
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Token details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenDetail"
+
+  /tokens/{tokenId}/confirm:
+    post:
+      operationId: confirmArrival
+      tags: [tokens]
+      summary: Confirm arrival (QR scan)
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Arrival confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+
+  /tokens/{tokenId}/leave:
+    post:
+      operationId: leaveQueue
+      tags: [tokens]
+      summary: Leave the queue
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveQueueBody"
+      responses:
+        "200":
+          description: Left the queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+
+  /tokens/{tokenId}/skip:
+    post:
+      operationId: skipToken
+      tags: [tokens]
+      summary: Skip a token (admin action)
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Token skipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+
+  /tokens/{tokenId}/complete:
+    post:
+      operationId: completeToken
+      tags: [tokens]
+      summary: Mark token as served/completed
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Token completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+
+  /my-tokens:
+    get:
+      operationId: getMyTokens
+      tags: [tokens]
+      summary: Get my active tokens
+      responses:
+        "200":
+          description: My tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TokenDetail"
+
+  # Analytics
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get overall analytics summary
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/queues/{queueId}:
+    get:
+      operationId: getQueueAnalytics
+      tags: [analytics]
+      summary: Get analytics for a specific queue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Queue analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueAnalytics"
+
+  /analytics/peak-hours:
+    get:
+      operationId: getPeakHours
+      tags: [analytics]
+      summary: Get peak hours heatmap data
+      parameters:
+        - name: queueId
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Peak hours data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PeakHourData"
+
+  # Display screen
+  /display/{queueId}:
+    get:
+      operationId: getDisplayData
+      tags: [display]
+      summary: Get data for public display screen
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Display data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayData"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +506,319 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    # Auth schemas
+    RegisterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [customer, admin, staff]
+          default: customer
+      required: [name, email, password]
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [customer, admin, staff]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, role, createdAt]
+
+    # Queue schemas
+    Queue:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        industry:
+          type: string
+          enum: [hospital, bank, salon, college, government, retail, other]
+        location:
+          type: string
+        avgServiceTimeMinutes:
+          type: integer
+        status:
+          type: string
+          enum: [active, paused, closed]
+        maxCapacity:
+          type: integer
+        currentCount:
+          type: integer
+        estimatedWaitMinutes:
+          type: integer
+        openAt:
+          type: string
+        closeAt:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, industry, location, avgServiceTimeMinutes, status, currentCount, estimatedWaitMinutes, createdAt]
+
+    QueueDetail:
+      allOf:
+        - $ref: "#/components/schemas/Queue"
+        - type: object
+          properties:
+            tokens:
+              type: array
+              items:
+                $ref: "#/components/schemas/Token"
+            calledToken:
+              $ref: "#/components/schemas/Token"
+
+    CreateQueueBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        industry:
+          type: string
+          enum: [hospital, bank, salon, college, government, retail, other]
+        location:
+          type: string
+        avgServiceTimeMinutes:
+          type: integer
+        maxCapacity:
+          type: integer
+        openAt:
+          type: string
+        closeAt:
+          type: string
+      required: [name, industry, location, avgServiceTimeMinutes]
+
+    UpdateQueueBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        avgServiceTimeMinutes:
+          type: integer
+        maxCapacity:
+          type: integer
+        openAt:
+          type: string
+        closeAt:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, closed]
+
+    PauseQueueBody:
+      type: object
+      properties:
+        paused:
+          type: boolean
+      required: [paused]
+
+    # Token schemas
+    Token:
+      type: object
+      properties:
+        id:
+          type: integer
+        queueId:
+          type: integer
+        userId:
+          type: integer
+        tokenNumber:
+          type: string
+        position:
+          type: integer
+        status:
+          type: string
+          enum: [waiting, called, serving, completed, skipped, left, no_show]
+        priority:
+          type: string
+          enum: [normal, vip, emergency]
+        estimatedWaitMinutes:
+          type: integer
+        noShowProbability:
+          type: number
+        arrivalConfirmed:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+        calledAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required: [id, queueId, userId, tokenNumber, position, status, priority, estimatedWaitMinutes, arrivalConfirmed, joinedAt]
+
+    TokenDetail:
+      allOf:
+        - $ref: "#/components/schemas/Token"
+        - type: object
+          properties:
+            queue:
+              $ref: "#/components/schemas/Queue"
+            user:
+              $ref: "#/components/schemas/User"
+            qrCode:
+              type: string
+            confidenceLevel:
+              type: string
+              enum: [high, medium, low]
+
+    JoinQueueBody:
+      type: object
+      properties:
+        priority:
+          type: string
+          enum: [normal, vip, emergency]
+          default: normal
+        notes:
+          type: string
+      required: []
+
+    LeaveQueueBody:
+      type: object
+      properties:
+        reason:
+          type: string
+      required: []
+
+    # Analytics schemas
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalTokensServed:
+          type: integer
+        avgWaitTimeMinutes:
+          type: number
+        noShowRate:
+          type: number
+        peakHour:
+          type: string
+        activeQueues:
+          type: integer
+        totalQueues:
+          type: integer
+        tokensToday:
+          type: integer
+        satisfactionScore:
+          type: number
+      required: [totalTokensServed, avgWaitTimeMinutes, noShowRate, activeQueues, totalQueues, tokensToday]
+
+    QueueAnalytics:
+      type: object
+      properties:
+        queueId:
+          type: integer
+        queueName:
+          type: string
+        totalServed:
+          type: integer
+        avgWaitTime:
+          type: number
+        noShowRate:
+          type: number
+        dailyStats:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyStat"
+        topPeakHour:
+          type: string
+      required: [queueId, queueName, totalServed, avgWaitTime, noShowRate, dailyStats]
+
+    DailyStat:
+      type: object
+      properties:
+        date:
+          type: string
+        count:
+          type: integer
+        avgWait:
+          type: number
+        noShows:
+          type: integer
+      required: [date, count, avgWait, noShows]
+
+    PeakHourData:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+        hour:
+          type: integer
+        avgCount:
+          type: number
+      required: [dayOfWeek, hour, avgCount]
+
+    DisplayData:
+      type: object
+      properties:
+        queueName:
+          type: string
+        currentlyServing:
+          type: string
+        waitingCount:
+          type: integer
+        recentlyCalled:
+          type: array
+          items:
+            type: string
+        estimatedWaitMinutes:
+          type: integer
+        status:
+          type: string
+      required: [queueName, currentlyServing, waitingCount, recentlyCalled, estimatedWaitMinutes, status]
