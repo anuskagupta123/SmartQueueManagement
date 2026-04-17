@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: queue-optimizer-api
+    runtime: node
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/healthz
+    buildCommand: corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm --filter @workspace/api-server run build
+    startCommand: corepack pnpm --filter @workspace/api-server run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
