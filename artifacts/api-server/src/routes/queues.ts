@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { queuesTable, tokensTable } from "@workspace/db";
+import { queuesTable, tokensTable, usersTable } from "@workspace/db";
 import { eq, and, sql, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import {
@@ -9,6 +9,7 @@ import {
   PauseQueueBody,
   ListQueuesQueryParams,
 } from "@workspace/api-zod";
+import { sendTokenCalledEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -238,6 +239,19 @@ router.post("/:queueId/call-next", requireAuth, requireRole("admin", "staff"), a
     .set({ status: "called", calledAt: new Date() })
     .where(eq(tokensTable.id, nextToken.id))
     .returning();
+
+  // Send "it's your turn" email (fire-and-forget)
+  const [calledQueue] = await db.select().from(queuesTable).where(eq(queuesTable.id, queueId)).limit(1);
+  const [calledUser] = await db.select().from(usersTable).where(eq(usersTable.id, called.userId)).limit(1);
+  if (calledUser?.email && calledQueue) {
+    sendTokenCalledEmail({
+      to: calledUser.email,
+      name: calledUser.name,
+      tokenNumber: called.tokenNumber,
+      queueName: calledQueue.name,
+      location: calledQueue.location,
+    }).catch(() => {});
+  }
 
   res.json({
     id: called.id,

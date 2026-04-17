@@ -14,6 +14,10 @@ import {
   generateTokenNumber,
   isPeakHour,
 } from "../lib/queue-intelligence.js";
+import {
+  sendTokenJoinedEmail,
+  sendTokenSkippedEmail,
+} from "../lib/email.js";
 
 const router = Router();
 
@@ -139,6 +143,20 @@ router.post("/queues/:queueId/tokens", requireAuth, async (req, res) => {
       notes: body.notes,
     })
     .returning();
+
+  // Send confirmation email (fire-and-forget)
+  const [joiningUser] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.id)).limit(1);
+  if (joiningUser?.email) {
+    sendTokenJoinedEmail({
+      to: joiningUser.email,
+      name: joiningUser.name,
+      tokenNumber,
+      queueName: queue.name,
+      location: queue.location,
+      position,
+      estimatedWaitMinutes: estimatedWait,
+    }).catch(() => {});
+  }
 
   res.status(201).json(formatToken(token));
 });
@@ -274,6 +292,20 @@ router.post("/tokens/:tokenId/skip", requireAuth, async (req, res) => {
   }
 
   await recalculatePositions(token.queueId);
+
+  // Send skipped notification email (fire-and-forget)
+  const [skippedUser] = await db.select().from(usersTable).where(eq(usersTable.id, token.userId)).limit(1);
+  const [skippedQueue] = await db.select().from(queuesTable).where(eq(queuesTable.id, token.queueId)).limit(1);
+  if (skippedUser?.email && skippedQueue) {
+    sendTokenSkippedEmail({
+      to: skippedUser.email,
+      name: skippedUser.name,
+      tokenNumber: token.tokenNumber,
+      queueName: skippedQueue.name,
+      location: skippedQueue.location,
+    }).catch(() => {});
+  }
+
   res.json(formatToken(token));
 });
 

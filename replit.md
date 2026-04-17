@@ -25,3 +25,16 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Email Notifications
+
+Email is powered by **Resend** (`resend` npm package in `artifacts/api-server`).
+- API key stored as secret: `RESEND_API_KEY`
+- Email service: `artifacts/api-server/src/lib/email.ts`
+- GitHub integration was dismissed — use PAT + git CLI if needed in the future
+- Three triggered emails:
+  1. **Token Joined** — sent when a user joins a queue (confirmation + wait time)
+  2. **Token Called** — sent when admin calls next token ("It's your turn!")
+  3. **Token Skipped** — sent when a token is skipped by staff
+- All emails fire-and-forget (won't block the API response if Resend is down)
+- FROM address uses `onboarding@resend.dev` (Resend sandbox); switch to a verified domain for production
